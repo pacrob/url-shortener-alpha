@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "pydantic-settings",
+    "redis>=8.0.0",
     "uvicorn[standard]",
 ]
 
