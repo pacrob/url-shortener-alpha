@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "snip"
     base_url: str = "http://localhost"
     redis_url: str = "redis://localhost:6379/0"
+    default_ttl_seconds: int | None = None
 
 
 @lru_cache

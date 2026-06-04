@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl
 
 from app.config import Settings, get_settings
 from app.services.redis import RedisService, get_redis
@@ -21,6 +21,7 @@ _CODE_LENGTH = 6
 
 class LinkCreate(BaseModel):
     url: HttpUrl
+    ttl_seconds: int | None = Field(default=None, gt=0)
 
 
 class LinkCreated(BaseModel):
@@ -58,6 +59,15 @@ async def create_link(
             "clicks": "0",
         },
     )
+
+    ttl = (
+        payload.ttl_seconds
+        if payload.ttl_seconds is not None
+        else settings.default_ttl_seconds
+    )
+    if ttl is not None:
+        await redis.expire(_key(code), ttl)
+
     return LinkCreated(code=code, short_url=f"{settings.base_url}/{code}")
 
 

@@ -1,3 +1,8 @@
+import asyncio
+
+import pytest
+
+
 async def test_create_link(client):
     resp = await client.post("/links", json={"url": "https://example.com/page"})
     assert resp.status_code == 201
@@ -50,5 +55,23 @@ async def test_delete_link(client):
     code = created.json()["code"]
     resp = await client.delete(f"/links/{code}")
     assert resp.status_code == 204
+    resp = await client.get(f"/{code}")
+    assert resp.status_code == 404
+
+
+async def test_create_link_without_ttl(client):
+    created = await client.post("/links", json={"url": "https://example.com/page"})
+    code = created.json()["code"]
+    resp = await client.get(f"/links/{code}")
+    assert resp.status_code == 200
+
+
+@pytest.mark.slow
+async def test_create_link_with_ttl(client):
+    created = await client.post(
+        "/links", json={"url": "https://example.com/page", "ttl_seconds": 1}
+    )
+    code = created.json()["code"]
+    await asyncio.sleep(2)
     resp = await client.get(f"/{code}")
     assert resp.status_code == 404

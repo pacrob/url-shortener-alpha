@@ -1,10 +1,16 @@
-.PHONY: install test lint format
+.PHONY: install test test-all test-slow lint format
 
 install:
 	uv sync
 
 test:
+	uv run pytest -m "not slow"
+
+test-all:
 	uv run pytest
+
+test-slow:
+	uv run pytest -m slow
 
 lint:
 	uv run ruff check --fix .

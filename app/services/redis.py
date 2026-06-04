@@ -33,6 +33,9 @@ class RedisService:
     async def exists(self, key: str) -> int:
         return await self._client.exists(key)
 
+    async def expire(self, key: str, seconds: int) -> bool:
+        return await self._client.expire(key, seconds)
+
     async def delete(self, key: str) -> int:
         return await self._client.delete(key)
 
