@@ -21,11 +21,17 @@ class RedisService:
     async def ping(self) -> bool:
         return await self._client.ping()
 
-    async def set(self, key: str, value: str, ex: int | None = None) -> bool:
-        return await self._client.set(key, value, ex=ex)
+    async def hset(self, key: str, mapping: dict[str, str]) -> int:
+        return await self._client.hset(key, mapping=mapping)
 
-    async def get(self, key: str) -> str | None:
-        return await self._client.get(key)
+    async def hgetall(self, key: str) -> dict[str, str]:
+        return await self._client.hgetall(key)
+
+    async def hincrby(self, key: str, field: str, amount: int = 1) -> int:
+        return await self._client.hincrby(key, field, amount)
+
+    async def exists(self, key: str) -> int:
+        return await self._client.exists(key)
 
     async def delete(self, key: str) -> int:
         return await self._client.delete(key)
