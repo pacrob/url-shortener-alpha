@@ -101,7 +101,7 @@ snip/
 - `/readyz` calls `redis.ping()`. Returns `200 {"status": "ok"}` if reachable, `503 {"status": "unavailable"}` if not.
 - A `fake_redis` fixture in `conftest.py` — an in-memory dict that satisfies the same interface, injected via FastAPI dependency override.
 
-**TDD steps:**
+**TDD steps:*
 1. Write `test_health.py::test_readiness_ok` — should fail (route absent).
 2. Write `test_health.py::test_readiness_redis_down` — uses a fake that raises on `ping()`.
 3. Build the Redis wrapper and the `/readyz` route.
