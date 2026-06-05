@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SNIP_", env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env")
 
     app_name: str = "snip"
     base_url: str = "http://localhost"

@@ -1,0 +1,42 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      target: runtime
+    image: snip:latest
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      BASE_URL: http://localhost:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Runs the suite (against the in-memory fake Redis) inside the image.
+  # tests/ is excluded from the image and mounted here at run time.
+  #   docker compose run --rm test
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      target: test
+    image: snip:test
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+
+volumes:
+  redis-data:

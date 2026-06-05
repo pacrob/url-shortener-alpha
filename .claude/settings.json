@@ -3,7 +3,10 @@
     "allow": [
       "Bash(git check-ignore *)",
       "Bash(make test *)",
-      "Bash(make test-slow *)"
+      "Bash(make test-slow *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker info *)"
     ]
   }
 }
