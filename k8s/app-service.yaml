@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: snip
+  namespace: snip
+  labels:
+    app: snip
+spec:
+  # NodePort: simplest way to reach the app from the host with kind. The app
+  # listens on 8000; the Service exposes port 80 and a node port for access.
+  type: NodePort
+  selector:
+    app: snip
+  ports:
+    - port: 80
+      targetPort: 8000
+      nodePort: 30080

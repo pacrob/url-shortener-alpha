@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snip
+  namespace: snip
+  labels:
+    app: snip
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: snip
+  template:
+    metadata:
+      labels:
+        app: snip
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # The image's "app" user is uid 1000. runAsNonRoot needs a numeric UID
+        # to verify non-root, since the image declares the user by name.
+        runAsUser: 1000
+      containers:
+        - name: snip
+          image: snip:latest
+          # Phase 7 uses the kind-loaded local image, not a registry, so never
+          # try to pull. Phase 8 swaps this for the ECR URI + imagePullSecrets.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: snip-config
+          env:
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            # Secret -> env plumbing (unused by the app for now; see secret.yaml).
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: snip-secret
+                  key: REDIS_PASSWORD
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

@@ -1,0 +1,329 @@
+{
+  "info": {
+    "name": "snip — URL Shortener",
+    "description": "Manual checks for the snip URL shortener.\n\nDefaults to the kind port-forward address (http://localhost:8080), i.e. after:\n\n    kubectl port-forward svc/snip 8080:80 -n snip\n\nTo run against Docker Compose instead, set the `baseUrl` collection variable to http://localhost:8000.\n\nThe **Links - Happy Path** folder is ordered to run top-to-bottom in the Collection Runner: Create captures the generated `code` into a collection variable, and Redirect / Get Metadata / Delete reuse it.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ttlCode",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness (GET /healthz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('body is {status: ok}', () => {",
+                  "  pm.expect(pm.response.json()).to.eql({ status: 'ok' });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/healthz",
+              "host": ["{{baseUrl}}"],
+              "path": ["healthz"]
+            },
+            "description": "Liveness probe target. Always 200 — does not touch Redis."
+          }
+        },
+        {
+          "name": "Readiness (GET /readyz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 200 when Redis is reachable, 503 when it is not.",
+                  "pm.test('status is 200 (Redis reachable)', () => pm.response.to.have.status(200));",
+                  "pm.test('body is {status: ok}', () => {",
+                  "  pm.expect(pm.response.json()).to.eql({ status: 'ok' });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/readyz",
+              "host": ["{{baseUrl}}"],
+              "path": ["readyz"]
+            },
+            "description": "Readiness probe target. 200 if Redis responds to PING, else 503 {status: unavailable}."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Links - Happy Path",
+      "item": [
+        {
+          "name": "Create Link (POST /links)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('has code and short_url', () => {",
+                  "  pm.expect(json).to.have.property('code');",
+                  "  pm.expect(json).to.have.property('short_url');",
+                  "});",
+                  "pm.test('code is 6 alphanumeric chars', () => {",
+                  "  pm.expect(json.code).to.match(/^[A-Za-z0-9]{6}$/);",
+                  "});",
+                  "// Capture for the chained requests below.",
+                  "pm.collectionVariables.set('code', json.code);",
+                  "console.log('captured code =', json.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/page\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/links",
+              "host": ["{{baseUrl}}"],
+              "path": ["links"]
+            },
+            "description": "Create a short link. Captures the returned code into the `code` collection variable."
+          }
+        },
+        {
+          "name": "Redirect (GET /{code})",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 307', () => pm.response.to.have.status(307));",
+                  "pm.test('Location header points to original URL', () => {",
+                  "  pm.expect(pm.response.headers.get('Location')).to.eql('https://example.com/page');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{code}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{code}}"]
+            },
+            "description": "Resolve a code to its URL. Redirect following is disabled so you can see the 307 + Location. Each call increments the click count."
+          }
+        },
+        {
+          "name": "Get Metadata (GET /links/{code})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('has url, created_at, clicks', () => {",
+                  "  pm.expect(json).to.have.property('url');",
+                  "  pm.expect(json).to.have.property('created_at');",
+                  "  pm.expect(json).to.have.property('clicks');",
+                  "});",
+                  "console.log('clicks =', pm.response.json().clicks);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/links/{{code}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["links", "{{code}}"]
+            },
+            "description": "Fetch metadata: original url, created_at, and clicks. clicks reflects how many times Redirect ran."
+          }
+        },
+        {
+          "name": "Delete Link (DELETE /links/{code})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/links/{{code}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["links", "{{code}}"]
+            },
+            "description": "Delete the link. Returns 204 No Content."
+          }
+        },
+        {
+          "name": "Get After Delete (GET /{code} -> 404)",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{code}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{code}}"]
+            },
+            "description": "The deleted code should now 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Links - Edge Cases",
+      "item": [
+        {
+          "name": "Create Link with TTL (POST /links)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('ttlCode', pm.response.json().code);",
+                  "console.log('TTL link code =', pm.response.json().code, '- expires in 60s');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/expiring\",\n  \"ttl_seconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/links",
+              "host": ["{{baseUrl}}"],
+              "path": ["links"]
+            },
+            "description": "Create a link that expires after ttl_seconds. After expiry, GET /{ttlCode} returns 404."
+          }
+        },
+        {
+          "name": "Create Link, Invalid URL (POST /links -> 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"not-a-url\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/links",
+              "host": ["{{baseUrl}}"],
+              "path": ["links"]
+            },
+            "description": "Pydantic HttpUrl validation rejects non-URLs with 422 Unprocessable Entity."
+          }
+        },
+        {
+          "name": "Get Unknown Code (GET /{code} -> 404)",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nope123",
+              "host": ["{{baseUrl}}"],
+              "path": ["nope123"]
+            },
+            "description": "An unknown code returns 404."
+          }
+        }
+      ]
+    }
+  ]
+}

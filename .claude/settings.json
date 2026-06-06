@@ -6,7 +6,10 @@
       "Bash(make test-slow *)",
       "Bash(docker --version)",
       "Bash(docker compose *)",
-      "Bash(docker info *)"
+      "Bash(docker info *)",
+      "Bash(kubectl apply *)",
+      "Bash(kind load *)",
+      "Bash(kubectl get *)"
     ]
   }
 }

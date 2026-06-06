@@ -27,6 +27,23 @@ need but the spec doesn't capture.
 - **Phase 7 uses the local image** (`kind load docker-image snip:latest`), not
   ECR. ECR + `imagePullSecrets` are introduced in Phase 8.
 
+## Kubernetes (Phase 7)
+
+- Deployed into the existing **`kind-learn`** cluster (not a fresh `kind` one),
+  all under the **`snip`** namespace. Manifests in [k8s/](k8s/).
+- Apply order matters: `kubectl apply -f k8s/namespace.yaml` first, then
+  `kubectl apply -f k8s/` (alphabetical apply would otherwise hit
+  app-deployment before namespace exists).
+- Load the local image before applying:
+  `kind load docker-image snip:latest --name learn`.
+- Access: `kubectl port-forward svc/snip 8080:80 -n snip`, then curl
+  `http://localhost:8080`. NodePort is `30080`.
+- **`runAsNonRoot` needs a numeric UID.** The image declares `USER app` (a
+  name), so the app Deployment sets `securityContext.runAsUser: 1000`;
+  without it pods fail with `CreateContainerConfigError` ("image has
+  non-numeric user"). Alternative fix: change the Dockerfile to `USER 1000`.
+- Teardown: `kubectl delete -f k8s/` (or `kubectl delete ns snip`).
+
 ## Local image tag
 
 The Compose build tags the image `snip:latest` (see

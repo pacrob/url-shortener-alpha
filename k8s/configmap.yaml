@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snip-config
+  namespace: snip
+data:
+  # Prefix used to build short_url. Matches the port-forward in the README
+  # (kubectl port-forward svc/snip 8080:80).
+  BASE_URL: "http://localhost:8080"
+  # Default link TTL when the caller doesn't supply one. This is the per-env
+  # knob a ConfigMap exists to provide — same image, different behavior.
+  DEFAULT_TTL_SECONDS: "86400"
