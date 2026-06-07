@@ -20,12 +20,22 @@ spec:
         # The image's "app" user is uid 1000. runAsNonRoot needs a numeric UID
         # to verify non-root, since the image declares the user by name.
         runAsUser: 1000
+      # Credentials for pulling from the private ECR registry. Created out of
+      # band (not in this repo) because the ECR token is short-lived:
+      #   kubectl create secret docker-registry ecr-pull-secret \
+      #     --docker-server=344378332628.dkr.ecr.us-east-1.amazonaws.com \
+      #     --docker-username=AWS \
+      #     --docker-password="$(aws ecr get-login-password --region us-east-1)" \
+      #     -n snip
+      imagePullSecrets:
+        - name: ecr-pull-secret
       containers:
         - name: snip
-          image: snip:latest
-          # Phase 7 uses the kind-loaded local image, not a registry, so never
-          # try to pull. Phase 8 swaps this for the ECR URI + imagePullSecrets.
-          imagePullPolicy: IfNotPresent
+          image: 344378332628.dkr.ecr.us-east-1.amazonaws.com/snip-url-shortener:latest
+          # Pull from ECR. Always so each rollout fetches the current image.
+          # Production: pin by digest (@sha256:...) instead of :latest — see
+          # CLAUDE.md.
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           envFrom:

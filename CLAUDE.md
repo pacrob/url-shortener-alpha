@@ -44,6 +44,26 @@ need but the spec doesn't capture.
   non-numeric user"). Alternative fix: change the Dockerfile to `USER 1000`.
 - Teardown: `kubectl delete -f k8s/` (or `kubectl delete ns snip`).
 
+## Pull from ECR (Phase 8)
+
+- App Deployment now pulls `…/snip-url-shortener:latest` from ECR (was the
+  kind-loaded `snip:latest`), `imagePullPolicy: Always`.
+- **Pull secret `ecr-pull-secret`** (type `dockerconfigjson`) in the `snip`
+  namespace, referenced via `imagePullSecrets` in app-deployment.yaml. It is
+  **not** in the repo — the ECR token is short-lived. Recreate/refresh with:
+  ```
+  kubectl create secret docker-registry ecr-pull-secret \
+    --docker-server=344378332628.dkr.ecr.us-east-1.amazonaws.com \
+    --docker-username=AWS \
+    --docker-password="$(aws ecr get-login-password --region us-east-1)" \
+    -n snip --dry-run=client -o yaml | kubectl apply -f -
+  ```
+- **ECR auth tokens expire ~12h.** When pods later fail with `ImagePullBackOff`
+  / 401, the secret is stale — re-run the command above and
+  `kubectl rollout restart deployment/snip -n snip`. (IRSA would avoid manual
+  refresh; out of scope here.)
+- Rollout mgmt: `kubectl rollout status|history|undo deployment/snip -n snip`.
+
 ## Local image tag
 
 The Compose build tags the image `snip:latest` (see
